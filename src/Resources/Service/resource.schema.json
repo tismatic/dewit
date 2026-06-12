@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Dewit service resource",
+  "type": "object",
+  "required": ["name", "state"],
+  "properties": {
+    "name": { "type": "string" },
+    "state": { "type": "string", "enum": ["running", "stopped", "restarted"] },
+    "startupType": { "type": "string", "enum": ["automatic", "manual", "disabled"] }
+  },
+  "additionalProperties": false
+}

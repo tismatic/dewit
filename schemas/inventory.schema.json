@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Dewit inventory",
+  "type": "object",
+  "properties": {
+    "hosts": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        {
+          "type": "object"
+        }
+      ]
+    },
+    "groups": { "type": "object" }
+  }
+}

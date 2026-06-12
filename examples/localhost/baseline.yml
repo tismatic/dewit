@@ -1,0 +1,16 @@
+name: Localhost demo baseline
+
+hosts:
+  - localhost
+
+tasks:
+  - name: Ensure demo directory exists
+    file:
+      path: .\DewitDemo
+      state: directory
+
+  - name: Ensure demo file exists
+    file:
+      path: .\DewitDemo\hello.txt
+      content: Hello from Dewit.
+      state: present

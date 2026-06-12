@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Dewit registry resource",
+  "type": "object",
+  "required": ["path", "name", "state"],
+  "properties": {
+    "path": { "type": "string" },
+    "name": { "type": "string" },
+    "value": {},
+    "type": { "type": "string", "enum": ["string", "expandString", "multiString", "dword", "qword", "binary"] },
+    "state": { "type": "string", "enum": ["present", "absent"] }
+  },
+  "additionalProperties": false
+}

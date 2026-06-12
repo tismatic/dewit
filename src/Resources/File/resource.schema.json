@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Dewit file resource",
+  "type": "object",
+  "required": ["path", "state"],
+  "properties": {
+    "path": { "type": "string" },
+    "state": { "type": "string", "enum": ["present", "absent", "directory"] },
+    "content": { "type": "string" }
+  },
+  "additionalProperties": false
+}

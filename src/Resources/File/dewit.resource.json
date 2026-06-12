@@ -1,0 +1,16 @@
+{
+  "name": "file",
+  "displayName": "File",
+  "description": "Manages files and directories.",
+  "version": "0.1.0",
+  "platforms": ["windows"],
+  "entrypoint": "DewitResource.psm1",
+  "schema": "resource.schema.json",
+  "supports": {
+    "get": true,
+    "test": true,
+    "set": true,
+    "whatIf": true,
+    "export": false
+  }
+}
