@@ -25,6 +25,43 @@ Describe 'Dewit inventory resolution' {
         }
     }
 
+    It 'resolves inline hosts from an array' {
+        InModuleScope Dewit {
+            $playbook = @{ hosts = @('localhost') }
+            $hosts = Resolve-DewitHosts -Playbook $playbook -Hosts @('server01', 'server02')
+            $hosts | Should Be @('server01', 'server02')
+        }
+    }
+
+    It 'splits comma-separated inline hosts' {
+        InModuleScope Dewit {
+            $playbook = @{ hosts = @('localhost') }
+            $hosts = Resolve-DewitHosts -Playbook $playbook -Hosts @('server01,server02')
+            $hosts | Should Be @('server01', 'server02')
+        }
+    }
+
+    It 'lets inline hosts override playbook hosts' {
+        InModuleScope Dewit {
+            $playbook = @{ hosts = @('localhost') }
+            $hosts = Resolve-DewitHosts -Playbook $playbook -Hosts @('server01')
+            $hosts | Should Be @('server01')
+        }
+    }
+
+    It 'rejects inline hosts with an inventory file' {
+        InModuleScope Dewit {
+            $threw = $false
+            try {
+                Resolve-DewitHosts -Playbook @{ hosts = @('all') } -Hosts @('server01') -InventoryPath inventory.yml
+            }
+            catch {
+                $threw = $true
+            }
+            $threw | Should Be $true
+        }
+    }
+
     It 'rejects inventories without hosts or groups' {
         InModuleScope Dewit {
             $threw = $false

@@ -11,7 +11,13 @@ function dewit {
         [Alias('i')]
         [string]$InventoryPath,
 
+        [string[]]$Hosts,
+
         [string]$ReportPath,
+
+        [pscredential]$Credential,
+
+        [int]$ThrottleLimit = 32,
 
         [switch]$DetailedExitCode,
 
@@ -35,17 +41,17 @@ function dewit {
         }
         'test' {
             if (-not $Path) { throw "Missing playbook path. Use: dewit test <playbook.yml>" }
-            Invoke-Dewit -Path $Path -InventoryPath $InventoryPath -Mode test -ReportPath $ReportPath -DetailedExitCode:$DetailedExitCode
+            Invoke-Dewit -Path $Path -InventoryPath $InventoryPath -Hosts $Hosts -Mode test -ReportPath $ReportPath -Credential $Credential -ThrottleLimit $ThrottleLimit -DetailedExitCode:$DetailedExitCode
             break
         }
         'plan' {
             if (-not $Path) { throw "Missing playbook path. Use: dewit plan <playbook.yml>" }
-            Invoke-Dewit -Path $Path -InventoryPath $InventoryPath -Mode plan -ReportPath $ReportPath -DetailedExitCode:$DetailedExitCode
+            Invoke-Dewit -Path $Path -InventoryPath $InventoryPath -Hosts $Hosts -Mode plan -ReportPath $ReportPath -Credential $Credential -ThrottleLimit $ThrottleLimit -DetailedExitCode:$DetailedExitCode
             break
         }
         'run' {
             if (-not $Path) { throw "Missing playbook path. Use: dewit run <playbook.yml>" }
-            Invoke-Dewit -Path $Path -InventoryPath $InventoryPath -Mode run -ReportPath $ReportPath -DetailedExitCode:$DetailedExitCode
+            Invoke-Dewit -Path $Path -InventoryPath $InventoryPath -Hosts $Hosts -Mode run -ReportPath $ReportPath -Credential $Credential -ThrottleLimit $ThrottleLimit -DetailedExitCode:$DetailedExitCode
             break
         }
     }

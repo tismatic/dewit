@@ -4,8 +4,18 @@ function Resolve-DewitHosts {
         [Parameter(Mandatory)]
         [object]$Playbook,
 
-        [string]$InventoryPath
+        [string]$InventoryPath,
+
+        [string[]]$Hosts
     )
+
+    if ($InventoryPath -and $Hosts) {
+        throw 'Use either -Hosts for inline target hosts or -InventoryPath/-i for an inventory file, not both.'
+    }
+
+    if ($Hosts) {
+        return Normalize-DewitInlineHosts -Hosts $Hosts
+    }
 
     if ($InventoryPath) {
         $inventory = Parse-DewitYaml -Path (Resolve-DewitPath -Path $InventoryPath)
@@ -22,6 +32,30 @@ function Resolve-DewitHosts {
     }
 
     return @('localhost')
+}
+
+function Normalize-DewitInlineHosts {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string[]]$Hosts
+    )
+
+    $normalizedHosts = New-Object System.Collections.Generic.List[string]
+    foreach ($hostEntry in $Hosts) {
+        foreach ($hostNamePart in ([string]$hostEntry -split ',')) {
+            $trimmedHostName = $hostNamePart.Trim()
+            if ($trimmedHostName) {
+                $normalizedHosts.Add($trimmedHostName)
+            }
+        }
+    }
+
+    if ($normalizedHosts.Count -eq 0) {
+        throw '-Hosts did not contain any host names.'
+    }
+
+    return @($normalizedHosts | Select-Object -Unique)
 }
 
 function Assert-DewitInventory {

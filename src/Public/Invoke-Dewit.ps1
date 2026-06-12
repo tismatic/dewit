@@ -10,7 +10,13 @@ function Invoke-Dewit {
         [Alias('i')]
         [string]$InventoryPath,
 
+        [string[]]$Hosts,
+
         [string]$ReportPath,
+
+        [pscredential]$Credential,
+
+        [int]$ThrottleLimit = 32,
 
         [switch]$DetailedExitCode,
 
@@ -21,7 +27,7 @@ function Invoke-Dewit {
     $playbook = Parse-DewitYaml -Path $resolvedPath
     Assert-DewitPlaybook -Playbook $playbook -Path $resolvedPath
 
-    $hosts = Resolve-DewitHosts -Playbook $playbook -InventoryPath $InventoryPath
+    $targetHosts = Resolve-DewitHosts -Playbook $playbook -InventoryPath $InventoryPath -Hosts $Hosts
     $resources = Get-DewitResourceIndex
     $results = New-Object System.Collections.Generic.List[object]
 
@@ -41,8 +47,8 @@ function Invoke-Dewit {
 
         Write-Host "TASK [$($task.name)]"
 
-        foreach ($hostName in $hosts) {
-            $result = Invoke-DewitTask -HostName $hostName -TaskName $task.name -ResourceName $resourceName -DesiredState $desiredState -ResourceInfo $resources[$resourceName] -Mode $Mode -WorkingPath (Split-Path -Parent $resolvedPath)
+        foreach ($targetHostName in $targetHosts) {
+            $result = Invoke-DewitTask -HostName $targetHostName -TaskName $task.name -ResourceName $resourceName -DesiredState $desiredState -ResourceInfo $resources[$resourceName] -Mode $Mode -WorkingPath (Split-Path -Parent $resolvedPath) -Credential $Credential -ThrottleLimit $ThrottleLimit
             $results.Add($result)
             Write-DewitResult -Result $result
         }

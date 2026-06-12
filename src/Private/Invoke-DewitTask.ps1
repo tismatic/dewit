@@ -21,7 +21,11 @@ function Invoke-DewitTask {
         [string]$Mode,
 
         [Parameter(Mandatory)]
-        [string]$WorkingPath
+        [string]$WorkingPath,
+
+        [pscredential]$Credential,
+
+        [int]$ThrottleLimit = 32
     )
 
     $timer = [System.Diagnostics.Stopwatch]::StartNew()
@@ -40,7 +44,7 @@ function Invoke-DewitTask {
         return Invoke-DewitLocalTask -HostName $HostName -TaskName $TaskName -ResourceName $ResourceName -DesiredState $DesiredState -ResourceInfo $ResourceInfo -Mode $Mode -Context $context -Timer $timer
     }
 
-    return Invoke-DewitRemoteTask -HostName $HostName -TaskName $TaskName -ResourceName $ResourceName -Mode $Mode -Timer $timer
+    return Invoke-DewitRemoteTask -HostName $HostName -TaskName $TaskName -ResourceName $ResourceName -DesiredState $DesiredState -ResourceInfo $ResourceInfo -Mode $Mode -WorkingPath $WorkingPath -Credential $Credential -ThrottleLimit $ThrottleLimit -Timer $timer
 }
 
 function Invoke-DewitLocalTask {
@@ -96,12 +100,123 @@ function Invoke-DewitRemoteTask {
         [Parameter(Mandatory)][string]$HostName,
         [Parameter(Mandatory)][string]$TaskName,
         [Parameter(Mandatory)][string]$ResourceName,
+        [Parameter(Mandatory)][hashtable]$DesiredState,
+        [Parameter(Mandatory)][object]$ResourceInfo,
         [Parameter(Mandatory)][ValidateSet('run', 'plan', 'test')][string]$Mode,
+        [Parameter(Mandatory)][string]$WorkingPath,
+        [pscredential]$Credential,
+        [int]$ThrottleLimit = 32,
         [Parameter(Mandatory)][System.Diagnostics.Stopwatch]$Timer
     )
 
-    $Timer.Stop()
-    New-DewitTaskResult -HostName $HostName -TaskName $TaskName -ResourceName $ResourceName -Status 'UNREACHABLE' -Changed $false -Message "Remote execution is not implemented yet for host '$HostName'." -DurationMs $Timer.ElapsedMilliseconds
+    try {
+        $resourceSource = Get-Content -Path $ResourceInfo.Entrypoint -Raw -ErrorAction Stop
+        $invokeParameters = @{
+            ComputerName  = $HostName
+            ScriptBlock   = ${function:Invoke-DewitRemoteResourceScript}
+            ArgumentList  = @($resourceSource, $DesiredState, $ResourceName, $TaskName, $Mode, $WorkingPath)
+            ErrorAction   = 'Stop'
+            ThrottleLimit = $ThrottleLimit
+        }
+
+        if ($Credential) {
+            $invokeParameters.Credential = $Credential
+        }
+
+        $remoteResult = Invoke-Command @invokeParameters
+        $Timer.Stop()
+
+        return New-DewitTaskResult -HostName $HostName -TaskName $TaskName -ResourceName $ResourceName -Status $remoteResult.Status -Changed ([bool]$remoteResult.Changed) -Message $remoteResult.Message -Before $remoteResult.Before -After $remoteResult.After -ErrorRecord $null -DurationMs $Timer.ElapsedMilliseconds
+    }
+    catch {
+        $Timer.Stop()
+        return New-DewitTaskResult -HostName $HostName -TaskName $TaskName -ResourceName $ResourceName -Status 'UNREACHABLE' -Changed $false -Message "Could not connect to host '$HostName' using PowerShell remoting. $($_.Exception.Message)" -ErrorRecord $_ -DurationMs $Timer.ElapsedMilliseconds
+    }
+}
+
+function Invoke-DewitRemoteResourceScript {
+    param(
+        [Parameter(Mandatory)][string]$ResourceSource,
+        [Parameter(Mandatory)][hashtable]$DesiredState,
+        [Parameter(Mandatory)][string]$ResourceName,
+        [Parameter(Mandatory)][string]$TaskName,
+        [Parameter(Mandatory)][ValidateSet('run', 'plan', 'test')][string]$Mode,
+        [Parameter(Mandatory)][string]$WorkingPath
+    )
+
+    $context = @{
+        HostName     = $env:COMPUTERNAME
+        Mode         = $Mode
+        CheckMode    = $Mode -ne 'run'
+        WhatIf       = $Mode -eq 'plan'
+        Variables    = @{}
+        TaskName     = $TaskName
+        ResourceName = $ResourceName
+        WorkingPath  = $WorkingPath
+    }
+
+    try {
+        $resourceModule = New-Module -ScriptBlock ([scriptblock]::Create($ResourceSource))
+        $getCommand = Get-Command -Name Get-DewitResourceState -Module $resourceModule -ErrorAction Stop
+        $testCommand = Get-Command -Name Test-DewitResourceState -Module $resourceModule -ErrorAction Stop
+        $setCommand = Get-Command -Name Set-DewitResourceState -Module $resourceModule -ErrorAction Stop
+
+        $current = & $getCommand -DesiredState $DesiredState -Context $context
+        $inState = & $testCommand -DesiredState $DesiredState -CurrentState $current -Context $context
+
+        if ($inState) {
+            return [pscustomobject]@{
+                Status  = 'OK'
+                Changed = $false
+                Message = 'Resource already matches desired state.'
+                Before  = $current
+                After   = $current
+                Error   = $null
+            }
+        }
+
+        if ($Mode -eq 'plan') {
+            return [pscustomobject]@{
+                Status  = 'CHANGED'
+                Changed = $true
+                Message = 'Would update resource state.'
+                Before  = $current
+                After   = $null
+                Error   = $null
+            }
+        }
+
+        if ($Mode -eq 'test') {
+            return [pscustomobject]@{
+                Status  = 'NONCOMPLIANT'
+                Changed = $false
+                Message = 'Resource does not match desired state.'
+                Before  = $current
+                After   = $null
+                Error   = $null
+            }
+        }
+
+        $setResult = & $setCommand -DesiredState $DesiredState -CurrentState $current -Context $context
+        return [pscustomobject]@{
+            Status  = 'CHANGED'
+            Changed = $true
+            Message = $setResult.Message
+            Before  = $setResult.Before
+            After   = $setResult.After
+            Error   = $null
+        }
+    }
+    catch {
+        return [pscustomobject]@{
+            Status  = 'FAILED'
+            Changed = $false
+            Message = $_.Exception.Message
+            Before  = $null
+            After   = $null
+            Error   = $_.Exception.Message
+        }
+    }
 }
 
 function Test-DewitLocalHost {

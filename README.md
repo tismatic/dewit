@@ -56,6 +56,49 @@ Exit code behavior:
 - `5`: one or more hosts unreachable
 - `6`: one or more tasks failed
 
+## Remote Execution
+
+Dewit can run against non-local inventory hosts with PowerShell Remoting. Remoting must already be configured and reachable; Dewit does not weaken WinRM settings or bootstrap insecure remoting.
+
+Example inventory:
+
+```yaml
+hosts:
+  - server01.contoso.com
+```
+
+Run with current user authentication:
+
+```powershell
+dewit run .\baseline.yml -i .\inventory.yml
+```
+
+Run against inline hosts without an inventory file:
+
+```powershell
+dewit run .\baseline.yml -Hosts server01,server02
+```
+
+Run with an explicit credential:
+
+```powershell
+dewit run .\baseline.yml -i .\inventory.yml -Credential (Get-Credential)
+```
+
+Inline hosts also work with explicit credentials:
+
+```powershell
+dewit run .\baseline.yml -Hosts server01,server02 -Credential (Get-Credential)
+```
+
+Set remoting throttle:
+
+```powershell
+dewit run .\baseline.yml -i .\inventory.yml -ThrottleLimit 20
+```
+
+Unreachable hosts are reported as `UNREACHABLE` and return exit code `5`.
+
 ## Current Scope
 
 This repository currently implements the localhost milestone:
